@@ -1,0 +1,8 @@
+{
+  "vault": "${TRACEABILITY_VAULT}",
+  "project": "${TRACEABILITY_PROJECT}",
+  "repoRoot": "${TRACEABILITY_REPO_ROOT}",
+  "maxCallers": 8,
+  "reindex": true,
+  "dryRun": false
+}

@@ -1,0 +1,102 @@
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+import { type Plugin, tool } from "@opencode-ai/plugin"
+
+const execFileAsync = promisify(execFile)
+type CommandResult = { stdout: string; stderr: string }
+
+async function run(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<CommandResult> {
+  return execFileAsync(command, args, {
+    env: { ...process.env, ...env },
+    windowsHide: true,
+    maxBuffer: 256 * 1024,
+  }) as Promise<CommandResult>
+}
+
+function required(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`Missing required environment variable: ${name}`)
+  return value
+}
+
+async function optional(label: string, action: () => Promise<CommandResult>): Promise<string> {
+  try {
+    const result = await action()
+    return `### ${label}\n${result.stdout.trim() || result.stderr.trim() || "(sin resultados)"}`
+  } catch (error) {
+    return `### ${label}\nUnavailable: ${String(error)}`
+  }
+}
+
+const TraceabilityPlugin: Plugin = async ({ $, client }) => {
+  const autoSync = process.env.TRACEABILITY_AUTO_SYNC === "true"
+  const kitRoot = process.env.TRACEABILITY_KIT_ROOT
+  let syncInFlight: Promise<unknown> | undefined
+
+  const sync = async () => {
+    if (!autoSync || !kitRoot || syncInFlight) return
+    syncInFlight = (async () => {
+      try {
+        if (process.platform === "win32") {
+          await $`powershell -NoProfile -ExecutionPolicy Bypass -File ${kitRoot}/scripts/traceability-sync.ps1 -Enrich`
+        } else {
+          await $`${kitRoot}/scripts/traceability-sync.sh`
+        }
+        await client.app.log({ body: { service: "traceability", level: "info", message: "Automatic traceability sync completed" } })
+      } catch (error) {
+        await client.app.log({ body: { service: "traceability", level: "warn", message: `Automatic sync failed: ${String(error)}` } })
+      } finally {
+        syncInFlight = undefined
+      }
+    })()
+    await syncInFlight
+  }
+
+  const contextTool = tool({
+    description: "Return bounded historical, vault, and CodeGraph context before changing a functionality.",
+    args: {
+      query: tool.schema.string().min(1).max(200).describe("Natural-language question or behavior to investigate"),
+      symbol: tool.schema.string().max(160).optional().describe("Optional exact CodeGraph symbol"),
+      limit: tool.schema.number().int().min(1).max(8).optional().describe("Maximum results per source"),
+    },
+    async execute(args) {
+      const vault = required("TRACEABILITY_VAULT")
+      const project = required("TRACEABILITY_PROJECT")
+      const repo = required("TRACEABILITY_REPO_ROOT")
+      const node = process.env.TRACEABILITY_NODE || "node"
+      const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI || "vault-intelligence.js"
+      const engram = process.env.ENGRAM_BIN || "engram"
+      const codegraph = process.env.TRACEABILITY_CODEGRAPH_BIN || "codegraph"
+      const limit = String(args.limit || 5)
+
+      const parts = await Promise.all([
+        optional("Obsidian", () => run(node, [cli, "search", args.query, "--hybrid", "--limit", limit], { VAULT_PATH: vault })),
+        optional("Engram", () => run(engram, ["search", args.query, "--project", project, "--limit", limit], {})),
+        args.symbol
+          ? optional("CodeGraph callers", () => run(codegraph, ["callers", args.symbol!, "--path", repo, "--limit", limit, "--json"], {}))
+          : Promise.resolve("### CodeGraph callers\nNo symbol supplied; caller lookup skipped."),
+      ])
+
+      return [
+        "# Traceability context",
+        `Query: ${args.query}`,
+        args.symbol ? `Symbol: ${args.symbol}` : "",
+        ...parts,
+        "Use this as evidence. Confirm current source with CodeGraph before editing.",
+      ].filter(Boolean).join("\n\n")
+    },
+  })
+
+  return {
+    tool: { traceability_context: contextTool },
+    event: async ({ event }: { event: { type?: string } }) => {
+      if (event.type === "session.idle") await sync()
+    },
+    "tool.execute.after": async (input: { tool?: string }) => {
+      if (input.tool && /sdd[-_]archive/i.test(input.tool)) await sync()
+    },
+  }
+}
+
+export { TraceabilityPlugin }
+export default TraceabilityPlugin

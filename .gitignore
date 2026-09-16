@@ -1,0 +1,7 @@
+.vault-intelligence.db
+*.db
+.env
+node_modules/
+.codegraph/
+*.log
+vault-report.html

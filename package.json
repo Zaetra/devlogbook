@@ -1,0 +1,26 @@
+{
+  "name": "opencode-traceability",
+  "private": false,
+  "version": "0.2.0",
+  "description": "Project-selectable CodeGraph, Engram, Obsidian, and OpenCode traceability toolkit",
+  "main": "plugin.ts",
+  "bin": {
+    "traceability": "bin/traceability.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "plugin.ts",
+    "scripts",
+    "README.md",
+    "config",
+    ".opencode"
+  ],
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.31",
+    "obsidian-intelligence": "1.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
