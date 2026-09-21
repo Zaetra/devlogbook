@@ -30,6 +30,8 @@ async function optional(label: string, action: () => Promise<CommandResult>): Pr
 
 const TraceabilityPlugin: Plugin = async ({ $, client }) => {
   const autoSync = process.env.TRACEABILITY_AUTO_SYNC === "true"
+  const gateEnabled = process.env.TRACEABILITY_REQUIRE_CONTEXT === "true" && process.env.TRACEABILITY_SKIP_GATE !== "true"
+  let contextConsulted = false
   const kitRoot = process.env.TRACEABILITY_KIT_ROOT
   let syncInFlight: Promise<unknown> | undefined
   let lastSyncAt = 0
@@ -63,6 +65,7 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
       limit: tool.schema.number().int().min(1).max(8).optional().describe("Maximum results per source"),
     },
     async execute(args) {
+      contextConsulted = true
       const vault = required("TRACEABILITY_VAULT")
       const project = required("TRACEABILITY_PROJECT")
       const repo = required("TRACEABILITY_REPO_ROOT")
@@ -94,6 +97,18 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
     tool: { traceability_context: contextTool },
     event: async ({ event }: { event: { type?: string } }) => {
       if (event.type === "session.idle") await sync()
+    },
+    "tool.execute.before": async (input: { tool?: string }) => {
+      // Hard gate: deny code edits until the agent consulted traceability
+      // context at least once this session (opt-in via TRACEABILITY_REQUIRE_CONTEXT).
+      if (!gateEnabled) return
+      if (!input.tool || !/^(edit|write|multiedit|patch)$/i.test(input.tool)) return
+      if (contextConsulted) return
+      throw new Error(
+        "TRACEABILITY gate: no traceability_context call in this session yet. " +
+        "Investigate the target functionality first with the traceability_context tool, then retry the edit. " +
+        "Set TRACEABILITY_SKIP_GATE=true to bypass."
+      )
     },
     "tool.execute.after": async (input: { tool?: string; args?: string; call?: { args?: string } }) => {
       const command = `${input.args || ""}${input.call?.args || ""}`.toLowerCase()

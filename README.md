@@ -101,6 +101,14 @@ Restart OpenCode. The plugin provides `traceability_context` and triggers a boun
 $env:TRACEABILITY_AUTO_SYNC = "true"
 ```
 
+Optional hard gate: deny code edits until the agent consulted traceability
+context at least once during the session (investigate first, edit after):
+
+```powershell
+$env:TRACEABILITY_REQUIRE_CONTEXT = "true"   # enable the gate
+$env:TRACEABILITY_SKIP_GATE = "true"         # explicit escape hatch
+```
+
 The plugin uses these environment variables:
 
 ```powershell
