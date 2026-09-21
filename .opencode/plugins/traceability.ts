@@ -65,8 +65,17 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
       limit: tool.schema.number().int().min(1).max(8).optional().describe("Maximum results per source"),
     },
     async execute(args) {
-      contextConsulted = true
       await client.app.log({ body: { service: "traceability", level: "info", message: `traceability_context consulted: ${args.query.slice(0, 120)}` } })
+      // Validate all envs up front with an actionable message, and only unlock
+      // the edit gate after a call that actually produced context.
+      const missing = ["TRACEABILITY_VAULT", "TRACEABILITY_PROJECT", "TRACEABILITY_REPO_ROOT"].filter((name) => !process.env[name])
+      if (missing.length > 0) {
+        throw new Error(
+          `traceability_context cannot run: missing environment variables ${missing.join(", ")}. ` +
+          "Set them (e.g. TRACEABILITY_VAULT=<vault path>, TRACEABILITY_PROJECT=<engram project>, TRACEABILITY_REPO_ROOT=<repo>) " +
+          "in the terminal BEFORE launching OpenCode, then restart OpenCode and retry."
+        )
+      }
       const vault = required("TRACEABILITY_VAULT")
       const project = required("TRACEABILITY_PROJECT")
       const repo = required("TRACEABILITY_REPO_ROOT")
@@ -77,20 +86,22 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
       const limit = String(args.limit || 5)
 
       const parts = await Promise.all([
-        optional("Obsidian", () => run(node, [cli, "search", args.query, "--hybrid", "--limit", limit], { VAULT_PATH: vault })),
+        optional("Obsidian", () => run(node, [cli, "search", args.query], { VAULT_PATH: vault })),
         optional("Engram", () => run(engram, ["search", args.query, "--project", project, "--limit", limit], {})),
         args.symbol
           ? optional("CodeGraph callers", () => run(codegraph, ["callers", args.symbol!, "--path", repo, "--limit", limit, "--json"], {}))
           : Promise.resolve("### CodeGraph callers\nNo symbol supplied; caller lookup skipped."),
       ])
 
-      return [
+      const result = [
         "# Traceability context",
         `Query: ${args.query}`,
         args.symbol ? `Symbol: ${args.symbol}` : "",
         ...parts,
         "Use this as evidence. Confirm current source with CodeGraph before editing.",
       ].filter(Boolean).join("\n\n")
+      contextConsulted = true
+      return result
     },
   })
 
