@@ -208,9 +208,32 @@ function loadFeatureMap(vault) {
   return {}
 }
 
+function readAliases(noteFile) {
+  const raw = fs.readFileSync(noteFile, "utf8")
+  const aliases = []
+  if (raw.startsWith("---\n")) {
+    const close = raw.indexOf("\n---\n", 4)
+    if (close !== -1) {
+      const frontmatter = raw.slice(4, close)
+      const lines = frontmatter.split("\n")
+      const aliasIndex = lines.findIndex((line) => line.startsWith("aliases:"))
+      if (aliasIndex !== -1) {
+        for (const line of lines.slice(aliasIndex + 1)) {
+          if (!line.startsWith(" ") && !line.startsWith("-")) break
+          const value = line.match(/-\s*"?([^"|\n]+)"?\s*$/)
+          if (value && value[1]) aliases.push(value[1].trim())
+        }
+      }
+    }
+  }
+  return aliases
+}
+
 function classifyFeature(noteFile, title, featureMap) {
-  const frontmatter = fs.readFileSync(noteFile, "utf8").slice(0, 2048).toLowerCase()
-  const haystack = `${title.toLowerCase()}\n${frontmatter}`
+  // Classify on title + aliases (the change-rendering titles Engram stores).
+  // Generic frontmatter/reactive fields work as bait (session_id matches
+  // almost every feature), and body text cites unrelated keywords.
+  const haystack = [title, ...readAliases(noteFile)].join("\n").toLowerCase()
   for (const [feature, keywords] of Object.entries(featureMap)) {
     if (!Array.isArray(keywords)) continue
     for (const keyword of keywords) {
@@ -229,6 +252,14 @@ function regroupByFeature(vault, project, featureMap) {
     const typePath = path.join(projectRoot, typeDir.name)
     for (const entry of fs.readdirSync(typePath, { withFileTypes: true })) {
       if (!entry.isFile() || !entry.name.endsWith(".md")) continue
+      // Feature MOCs are regenerated on every sync. A stale MOC whose feature
+      // was removed (its notes re-bucketed) is deleted instead of being left
+      // as a duplicate hub under a foreign feature.
+      if (entry.name.startsWith("MOC - ")) {
+        const mocFeature = entry.name.replace(/^MOC - /, "").replace(/\.md$/, "").toLowerCase()
+        if (mocFeature !== typeDir.name.toLowerCase()) fs.rmSync(path.join(typePath, entry.name), { force: true })
+        continue
+      }
       const source = path.join(typePath, entry.name)
       const feature = classifyFeature(source, entry.name.replace(/\.md$/, ""), featureMap)
       const featureDir = ensureDirectory(path.join(projectRoot, feature))
