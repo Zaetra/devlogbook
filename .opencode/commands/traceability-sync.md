@@ -2,8 +2,7 @@
 description: Export Engram and enrich the shared vault with current CodeGraph callers.
 ---
 
-Run the team traceability sync for the current workspace.
-
+Run the team devlogbook sync for the current workspace.
 Requirements:
 
 - `TRACEABILITY_VAULT`
@@ -14,7 +13,7 @@ Requirements:
 Run:
 
 ```powershell
-traceability sync --vault "$env:TRACEABILITY_VAULT" --project "$env:TRACEABILITY_PROJECT" --repo "$env:TRACEABILITY_REPO_ROOT"
+devlogbook sync --vault "$env:TRACEABILITY_VAULT" --project "$env:TRACEABILITY_PROJECT" --repo "$env:TRACEABILITY_REPO_ROOT"
 ```
 
 Report the export, enrichment, reindex, and validation results. Do not modify application code.

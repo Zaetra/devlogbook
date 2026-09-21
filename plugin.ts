@@ -6,7 +6,7 @@ const execFileAsync = promisify(execFile)
 
 const TraceabilityPlugin: Plugin = async ({ $, client }) => {
   const syncEnabled = process.env.TRACEABILITY_AUTO_SYNC === "true"
-  const cli = process.env.TRACEABILITY_CLI || "traceability"
+  const cli = process.env.TRACEABILITY_CLI || "devlogbook"
   let running = false
   let lastSyncAt = 0
 

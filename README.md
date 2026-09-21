@@ -1,6 +1,6 @@
-# OpenCode Traceability
+# Devlogbook
 
-Portable npm package that lets each developer investigate **their own** Engram memories and current repository with CodeGraph, then generate a local Obsidian-compatible knowledge graph.
+Portable npm package (formerly `opencode-traceability`; the `traceability` command name still works as an alias) that lets each developer investigate **their own** Engram memories and current repository with CodeGraph, then generate a local Obsidian-compatible knowledge graph.
 
 The package contains no project memories, no vault notes, no SQLite database, and no credentials.
 
@@ -9,7 +9,7 @@ The package contains no project memories, no vault notes, no SQLite database, an
 From npm:
 
 ```powershell
-npm install --global opencode-traceability
+npm install --global devlogbook
 ```
 
 For a local package build:
@@ -32,11 +32,11 @@ The user chooses the project and vault. Nothing is imported until `sync` is exec
 ```powershell
 # <your-project> = your Engram project name (e.g., the repo you are working on)
 # <path\to\your-repo> = path to that repository checkout
-traceability init `
+devlogbook init `
   --vault "C:\workspace\traceability-vault" `
   --project "<your-project>"
 
-traceability sync `
+devlogbook sync `
   --vault "C:\workspace\traceability-vault" `
   --project "<your-project>" `
   --repo "C:\workspace\<your-repo>"
@@ -53,19 +53,19 @@ The generated graph belongs to the selected user/workspace. A different develope
 ## Available commands
 
 ```text
-traceability init   --vault <path> [--project <name>]
-traceability sync   --vault <path> --project <name> --repo <path> [--since <date>] [--force]
-traceability watch  --vault <path> --project <name> --repo <path> [--interval <minutes>]
-traceability status --vault <path>
-traceability graph  --vault <path> [--limit <n>]
-traceability context --query <text> [--symbol <name>] [--project <name>] [--repo <path>] [--vault <path>]
-traceability opencode-install --repo <path>
+devlogbook init   --vault <path> [--project <name>]
+devlogbook sync   --vault <path> --project <name> --repo <path> [--since <date>] [--force]
+devlogbook watch  --vault <path> --project <name> --repo <path> [--interval <minutes>]
+devlogbook status --vault <path>
+devlogbook graph  --vault <path> [--limit <n>]
+devlogbook context --query <text> [--symbol <name>] [--project <name>] [--repo <path>] [--vault <path>]
+devlogbook opencode-install --repo <path>
 ```
 
 Example investigation:
 
 ```powershell
-traceability context `
+devlogbook context `
   --query "qué archivos usan el módulo principal de esta funcionalidad y qué cambios tuvo" `
   --symbol "<your-class-or-function>" `
   --project "<your-project>" `
@@ -76,7 +76,7 @@ traceability context `
 ## Continuous mode
 
 ```powershell
-traceability watch `
+devlogbook watch `
   --vault "C:\workspace\traceability-vault" `
   --project "<your-project>" `
   --repo "C:\workspace\<your-repo>" `
@@ -90,7 +90,7 @@ The watcher exports, enriches, and reindexes periodically. Stop with `Ctrl+C`.
 Install the npm plugin in the project's OpenCode configuration:
 
 ```powershell
-traceability opencode-install --repo "C:\workspace\<your-repo>"
+devlogbook opencode-install --repo "C:\workspace\<your-repo>"
 ```
 
 Restart OpenCode. The plugin provides `traceability_context` and triggers a bounded sync after an idle session or when the agent completes a work-unit `git commit`, whichever methodology the project uses (SDD, ODD, or plain ad-hoc work).
@@ -105,7 +105,7 @@ The plugin uses these environment variables:
 $env:TRACEABILITY_VAULT = "C:\workspace\traceability-vault"
 $env:TRACEABILITY_PROJECT = "<your-project>"
 $env:TRACEABILITY_REPO_ROOT = "C:\workspace\<your-repo>"
-$env:OBSIDIAN_INTELLIGENCE_CLI = "<path-to>\node_modules\opencode-traceability\node_modules\obsidian-intelligence\vault-intelligence.js"
+$env:OBSIDIAN_INTELLIGENCE_CLI = "<path-to>\node_modules\devlogbook\node_modules\obsidian-intelligence\vault-intelligence.js"
 ```
 
 ## Team-sharing policy
@@ -123,7 +123,7 @@ The package is code only. Each developer creates or selects their own vault and 
 ## Source layout
 
 ```text
-bin/traceability.js       # npm CLI
+bin/devlogbook.js         # npm CLI
 plugin.ts                 # OpenCode plugin entrypoint
 scripts/                  # sync, validation, and CodeGraph enrichment
 config/                   # portable configuration examples

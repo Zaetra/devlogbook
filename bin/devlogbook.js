@@ -33,13 +33,13 @@ function parseArgs(argv) {
 
 function usage() {
   console.log(`Usage:
-  traceability init   --vault <path> [--project <name>]
-  traceability sync   --vault <path> --project <name> --repo <path> [--since <date>] [--force]
-  traceability watch  --vault <path> --project <name> --repo <path> [--interval <minutes>]
-  traceability status --vault <path>
-  traceability graph  --vault <path> [--limit <n>]
-  traceability context --query <text> [--symbol <name>] [--project <name>] [--repo <path>] [--vault <path>]
-  traceability opencode-install --repo <path>
+  devlogbook init   --vault <path> [--project <name>]
+  devlogbook sync   --vault <path> --project <name> --repo <path> [--since <date>] [--force]
+  devlogbook watch  --vault <path> --project <name> --repo <path> [--interval <minutes>]
+  devlogbook status --vault <path>
+  devlogbook graph  --vault <path> [--limit <n>]
+  devlogbook context --query <text> [--symbol <name>] [--project <name>] [--repo <path>] [--vault <path>]
+  devlogbook opencode-install --repo <path>
 
 Environment defaults:
   TRACEABILITY_VAULT, TRACEABILITY_PROJECT, TRACEABILITY_REPO_ROOT,
@@ -102,7 +102,7 @@ function init(args) {
   ensureDirectory(vault)
   writeIfMissing(path.join(vault, ".gitignore"), ".vault-intelligence.db\n*.db\n")
   writeIfMissing(path.join(vault, "Inicio.md"), `---\ntype: moc\ntags: [inicio, moc]\n---\n\n# Bóveda de conocimiento\n\n- [[MOC - ${project}]]\n`)
-  writeIfMissing(path.join(vault, `MOC - ${project}.md`), `---\ntype: moc\ntags: [moc, ${project}]\n---\n\n# MOC — ${project}\n\n- [[Inicio]]\n\n## Cambios SDD\n\nLas notas se generan con el comando traceability sync.\n`)
+  writeIfMissing(path.join(vault, `MOC - ${project}.md`), `---\ntype: moc\ntags: [moc, ${project}]\n---\n\n# MOC — ${project}\n\n- [[Inicio]]\n\n## Cambios de trabajo\n\nLas notas se generan con el comando devlogbook sync.\n`)
   console.log(`Vault initialized: ${vault}`)
 }
 
@@ -156,7 +156,7 @@ function watch(args) {
   sync(syncArgs)
   console.log(`Watching ${value(args, "project", "TRACEABILITY_PROJECT", true)} every ${interval} minutes. Press Ctrl+C to stop.`)
   setInterval(() => {
-    try { sync(syncArgs) } catch (error) { console.error(`[traceability] sync failed: ${error.message}`) }
+    try { sync(syncArgs) } catch (error) { console.error(`[devlogbook] sync failed: ${error.message}`) }
   }, interval * 60 * 1000)
 }
 
@@ -168,7 +168,7 @@ function status(args) {
 function graph(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
   const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI
-  if (!fs.existsSync(cli)) throw new Error("Obsidian Intelligence is not installed. Run npm install -g opencode-traceability or set OBSIDIAN_INTELLIGENCE_CLI.")
+  if (!fs.existsSync(cli)) throw new Error("Obsidian Intelligence is not installed. Run npm install -g devlogbook or set OBSIDIAN_INTELLIGENCE_CLI.")
   run(executable("node", "TRACEABILITY_NODE"), [cli, "graph", "hubs", String(args.limit || 10)], { env: { VAULT_PATH: vault } })
 }
 
@@ -199,7 +199,7 @@ function installOpenCode(args) {
   const configPath = path.join(repo, "opencode.json")
   const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, "utf8")) : { $schema: "https://opencode.ai/config.json" }
   const plugins = Array.isArray(config.plugin) ? config.plugin : []
-  if (!plugins.includes("opencode-traceability")) plugins.push("opencode-traceability")
+  if (!plugins.includes("devlogbook")) plugins.push("devlogbook")
   config.plugin = plugins
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8")
   const opencodeRoot = path.join(repo, ".opencode")
@@ -207,7 +207,7 @@ function installOpenCode(args) {
   const commandSource = path.join(packageRoot, ".opencode", "commands")
   const skillInstalled = copyFilesIfMissing(skillSource, path.join(opencodeRoot, "skills"))
   const commandInstalled = copyFilesIfMissing(commandSource, path.join(opencodeRoot, "commands"))
-  console.log(`Added opencode-traceability to ${configPath}. Skill copied: ${skillInstalled}. Command copied: ${commandInstalled}. Restart OpenCode.`)
+  console.log(`Added devlogbook to ${configPath}. Skill copied: ${skillInstalled}. Command copied: ${commandInstalled}. Restart OpenCode.`)
 }
 
 function main() {
@@ -224,4 +224,4 @@ function main() {
   throw new Error(`Unknown command: ${command}`)
 }
 
-try { main() } catch (error) { console.error(`[traceability] ${error.message}`); process.exitCode = 1 }
+try { main() } catch (error) { console.error(`[devlogbook] ${error.message}`); process.exitCode = 1 }

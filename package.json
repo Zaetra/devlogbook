@@ -1,19 +1,20 @@
 {
-  "name": "opencode-traceability",
+  "name": "devlogbook",
   "private": false,
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Project-selectable CodeGraph, Engram, Obsidian, and OpenCode traceability toolkit",
   "main": "plugin.ts",
   "bin": {
-    "traceability": "bin/traceability.js"
+    "devlogbook": "bin/devlogbook.js",
+    "traceability": "bin/devlogbook.js"
   },
-  "homepage": "https://github.com/Zaetra/opencode-traceability#readme",
+  "homepage": "https://github.com/Zaetra/devlogbook#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zaetra/opencode-traceability.git"
+    "url": "git+https://github.com/Zaetra/devlogbook.git"
   },
   "bugs": {
-    "url": "https://github.com/Zaetra/opencode-traceability/issues"
+    "url": "https://github.com/Zaetra/devlogbook/issues"
   },
   "files": [
     "bin",
