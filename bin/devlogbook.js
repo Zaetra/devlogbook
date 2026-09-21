@@ -148,12 +148,13 @@ function reindex(vault) {
   run(node, [cli, "status", "--vault", vault])
 }
 
-function pruneExportNoise(vault) {
+function pruneExportNoise(vault, project, excludeTypes = []) {
   // Sessions and topics are operational metadata, not logbook content: they
   // bloat the Obsidian graph. The exporter emits them under <vault>/engram, so
   // prune after every export to keep the vault clean.
-  for (const noise of ["_sessions", "_topics"]) {
+  for (const noise of ["_sessions", "_topics", ...excludeTypes]) {
     fs.rmSync(path.join(vault, "engram", noise), { recursive: true, force: true })
+    fs.rmSync(path.join(vault, "engram", project, noise), { recursive: true, force: true })
   }
   // Exported observations still reference the pruned notes via [[session-*]]
   // and [[topic-*]] wikilinks. Neutralize those links into plain text so the
@@ -192,6 +193,10 @@ function neutralizeDanglingLinks(noteFile, knownNotes) {
 
 function loadFeatureMap(vault) {
   // Vault-level features.json wins over the kit default; both are optional.
+  // A feature value is an array of keywords; optional top-level keys:
+  // "relations" (feature -> related features) and "exclude" (exporter
+  // type folders kept out of the vault).
+  const config = { features: {}, relations: {}, exclude: [] }
   const candidates = [
     path.join(vault, "features.json"),
     path.join(packageRoot, "config", "features.json"),
@@ -199,13 +204,22 @@ function loadFeatureMap(vault) {
   for (const file of candidates) {
     if (fs.existsSync(file)) {
       try {
-        return JSON.parse(fs.readFileSync(file, "utf8"))
+        const raw = JSON.parse(fs.readFileSync(file, "utf8"))
+        config.features = raw
+        for (const key of Object.keys(raw)) {
+          if (key === "relations" && raw[key] && typeof raw[key] === "object") config.relations = raw[key]
+          if (key === "exclude") {
+            if (Array.isArray(raw.exclude)) config.exclude = raw.exclude.map(String)
+            if (raw.exclude && Array.isArray(raw.exclude.types)) config.exclude = raw.exclude.types.map(String)
+          }
+        }
+        return config
       } catch (error) {
         console.warn(`Ignoring malformed features file ${file}: ${error.message}`)
       }
     }
   }
-  return {}
+  return config
 }
 
 function readAliases(noteFile) {
@@ -243,7 +257,9 @@ function classifyFeature(noteFile, title, featureMap) {
   return "misc"
 }
 
-function regroupByFeature(vault, project, featureMap) {
+function regroupByFeature(vault, project, featureConfig) {
+  const featureMap = featureConfig.features || {}
+  const relations = featureConfig.relations || {}
   const projectRoot = path.join(vault, "engram", project)
   if (!fs.existsSync(projectRoot)) return
   const grouped = {}
@@ -272,9 +288,13 @@ function regroupByFeature(vault, project, featureMap) {
     if (fs.readdirSync(typePath).length === 0) fs.rmdirSync(typePath)
   }
   for (const [feature, notes] of Object.entries(grouped)) {
-    const moc = path.join(projectRoot, feature, `MOC - ${feature}.md`)
+    const related = Array.isArray(relations[feature]) ? relations[feature] : []
     const list = notes.map((n) => `- [[${n}]]`).join("\n")
-    fs.writeFileSync(moc, `---\ntype: moc\ntags: [moc, ${feature}]\n---\n\n# MOC - ${feature}\n\nNotas de esta funcionalidad, generadas por \`devlogbook sync\`.\n\n${list}\n`, "utf8")
+    const relSection = related.length > 0
+      ? `\n\n## Funcionalidades relacionadas\n\n${related.map((r) => `- [[MOC - ${r}]]`).join("\n")}`
+      : ""
+    const moc = path.join(projectRoot, feature, `MOC - ${feature}.md`)
+    fs.writeFileSync(moc, `---\ntype: moc\ntags: [moc, ${feature}]\n---\n\n# MOC - ${feature}\n\nNotas de esta funcionalidad, generadas por \`devlogbook sync\`.${relSection}\n\n${list}\n`, "utf8")
     grouped[feature] = notes
   }
   return grouped
@@ -284,9 +304,10 @@ function sync(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
   const project = value(args, "project", "TRACEABILITY_PROJECT", true)
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
+  const featureConfig = loadFeatureMap(vault)
   exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
-  pruneExportNoise(vault)
-  const grouped = regroupByFeature(vault, project, loadFeatureMap(vault))
+  pruneExportNoise(vault, project, featureConfig.exclude || [])
+  const grouped = regroupByFeature(vault, project, featureConfig)
   if (grouped) console.log(`Grouped by feature: ${Object.keys(grouped).join(", ")}`)
   enrich({ vault, repo, maxCallers: args.limit || 8 })
   reindex(vault)
