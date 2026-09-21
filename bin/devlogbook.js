@@ -136,7 +136,7 @@ function enrich({ vault, repo, maxCallers }) {
 }
 
 function reindex(vault) {
-  const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI || path.join(packageRoot, "node_modules", "obsidian-intelligence", "vault-intelligence.js")
+  const cli = resolveObsidianCli()
   if (!cli) {
     console.warn("Reindex skipped. Set OBSIDIAN_INTELLIGENCE_CLI to vault-intelligence.js.")
     return
@@ -283,6 +283,15 @@ function graph(args) {
   run(executable("node", "TRACEABILITY_NODE"), [cli, "graph", "hubs", String(args.limit || 10)], { env: { VAULT_PATH: vault } })
 }
 
+function resolveObsidianCli() {
+  if (process.env.OBSIDIAN_INTELLIGENCE_CLI) return process.env.OBSIDIAN_INTELLIGENCE_CLI
+  try {
+    return require.resolve(path.join("obsidian-intelligence", "vault-intelligence.js"))
+  } catch {
+    return path.join(packageRoot, "node_modules", "obsidian-intelligence", "vault-intelligence.js")
+  }
+}
+
 function context(args) {
   const query = value(args, "query", "TRACEABILITY_QUERY", true)
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
@@ -290,7 +299,7 @@ function context(args) {
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT")
   const limit = args.limit || 5
   const maxLimit = Number.isFinite(Number(args.limit)) ? Number(args.limit) : 8
-  const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI || path.join(packageRoot, "node_modules", "obsidian-intelligence", "vault-intelligence.js")
+  const cli = resolveObsidianCli()
   const featureMap = loadFeatureMap(vault)
 
   // Primary optimization: a matched feature returns its context hub (MOC +
@@ -348,9 +357,18 @@ function installOpenCode(args) {
   const opencodeRoot = path.join(repo, ".opencode")
   const skillSource = path.join(packageRoot, ".opencode", "skills")
   const commandSource = path.join(packageRoot, ".opencode", "commands")
+  const pluginSource = path.join(packageRoot, ".opencode", "plugins")
+  const pluginInstalled = copyFilesIfMissing(pluginSource, path.join(opencodeRoot, "plugins"))
+  // Project plugin files need the SDK dependency; only bootstrap a missing
+  // .opencode/package.json (do not overwrite an existing one, its version may
+  // intentionally match the host OpenCode).
+  const opencodePkg = path.join(opencodeRoot, "package.json")
+  if (!fs.existsSync(opencodePkg)) {
+    fs.writeFileSync(opencodePkg, JSON.stringify({ private: true, dependencies: { "@opencode-ai/plugin": "1.18.31" } }, null, 2) + "\n", "utf8")
+  }
   const skillInstalled = copyFilesIfMissing(skillSource, path.join(opencodeRoot, "skills"))
   const commandInstalled = copyFilesIfMissing(commandSource, path.join(opencodeRoot, "commands"))
-  console.log(`Added devlogbook to ${configPath}. Skill copied: ${skillInstalled}. Command copied: ${commandInstalled}. Restart OpenCode.`)
+  console.log(`Added devlogbook to ${configPath}. Skill copied: ${skillInstalled}. Command copied: ${commandInstalled}. Plugin file copied: ${pluginInstalled}. Restart OpenCode.`)
 }
 
 function main() {
