@@ -30,14 +30,16 @@ Requirements:
 The user chooses the project and vault. Nothing is imported until `sync` is executed.
 
 ```powershell
+# <your-project> = your Engram project name (e.g., the repo you are working on)
+# <path\to\your-repo> = path to that repository checkout
 traceability init `
   --vault "C:\workspace\traceability-vault" `
-  --project "ta_schedule_backend"
+  --project "<your-project>"
 
 traceability sync `
   --vault "C:\workspace\traceability-vault" `
-  --project "ta_schedule_backend" `
-  --repo "C:\workspace\ta_schedule_backend"
+  --project "<your-project>" `
+  --repo "C:\workspace\<your-repo>"
 ```
 
 `sync` performs:
@@ -64,10 +66,10 @@ Example investigation:
 
 ```powershell
 traceability context `
-  --query "qué archivos usan el resolver de batches GTFS y qué cambios tuvo" `
-  --symbol "GtfsBatchResolver" `
-  --project "ta_schedule_backend" `
-  --repo "C:\workspace\ta_schedule_backend" `
+  --query "qué archivos usan el módulo principal de esta funcionalidad y qué cambios tuvo" `
+  --symbol "<your-class-or-function>" `
+  --project "<your-project>" `
+  --repo "C:\workspace\<your-repo>" `
   --vault "C:\workspace\traceability-vault"
 ```
 
@@ -76,8 +78,8 @@ traceability context `
 ```powershell
 traceability watch `
   --vault "C:\workspace\traceability-vault" `
-  --project "ta_schedule_backend" `
-  --repo "C:\workspace\ta_schedule_backend" `
+  --project "<your-project>" `
+  --repo "C:\workspace\<your-repo>" `
   --interval 10
 ```
 
@@ -88,7 +90,7 @@ The watcher exports, enriches, and reindexes periodically. Stop with `Ctrl+C`.
 Install the npm plugin in the project's OpenCode configuration:
 
 ```powershell
-traceability opencode-install --repo "C:\workspace\ta_schedule_backend"
+traceability opencode-install --repo "C:\workspace\<your-repo>"
 ```
 
 Restart OpenCode. The plugin provides `traceability_context` and triggers a bounded sync after an idle session or when the agent completes a work-unit `git commit`, whichever methodology the project uses (SDD, ODD, or plain ad-hoc work).
@@ -101,9 +103,9 @@ The plugin uses these environment variables:
 
 ```powershell
 $env:TRACEABILITY_VAULT = "C:\workspace\traceability-vault"
-$env:TRACEABILITY_PROJECT = "ta_schedule_backend"
-$env:TRACEABILITY_REPO_ROOT = "C:\workspace\ta_schedule_backend"
-$env:OBSIDIAN_INTELLIGENCE_CLI = "C:\workspace\node_modules\opencode-traceability\node_modules\obsidian-intelligence\vault-intelligence.js"
+$env:TRACEABILITY_PROJECT = "<your-project>"
+$env:TRACEABILITY_REPO_ROOT = "C:\workspace\<your-repo>"
+$env:OBSIDIAN_INTELLIGENCE_CLI = "<path-to>\node_modules\opencode-traceability\node_modules\obsidian-intelligence\vault-intelligence.js"
 ```
 
 ## Team-sharing policy
