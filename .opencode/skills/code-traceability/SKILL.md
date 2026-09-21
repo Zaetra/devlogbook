@@ -8,10 +8,16 @@ description: Use before changing code or completing an SDD phase to connect curr
 ## Before changing code
 
 1. Resolve the repository root and project identity.
-2. Search the shared vault with `hybrid_search` or `search_content` for the requested behavior.
-3. Search Engram for the project and affected symbol/file.
-4. Query CodeGraph for callers, callees, and affected files.
-5. Compare historical decisions with the current tree. Report conflicts instead of guessing.
+2. **Call the `traceability_context` tool FIRST** with the natural-language query
+   of the behavior (and the symbol if known). It returns the feature hub
+   (`MOC - <feature>` with the full change history), matching Engram searches,
+   and CodeGraph callers in one bounded call — this replaces steps 2-4 below
+   and is enforced before any edit when `TRACEABILITY_REQUIRE_CONTEXT=true`.
+3. Only if `traceability_context` is unavailable, fall back to:
+   - vault search (`hybrid_search`)/`search_content` for the behavior;
+   - Engram search for the project and affected symbol/file;
+   - CodeGraph callers/callees for affected files.
+4. Compare historical decisions with the current tree. Report conflicts instead of guessing.
 
 Use bounded context: include the relevant notes and up to the configured caller limit. Do not dump the complete vault into a prompt.
 

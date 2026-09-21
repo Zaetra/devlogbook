@@ -58,7 +58,7 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
   }
 
   const contextTool = tool({
-    description: "Return bounded historical, vault, and CodeGraph context before changing a functionality.",
+    description: "PREFERRED first step before investigating or changing any project functionality: returns the feature hub (MOC, recent notes), Engram history, and CodeGraph consumers in one bounded call. Call this INSTEAD of raw Obsidian/Engram searches when a functionality, module, or behavior is involved.",
     args: {
       query: tool.schema.string().min(1).max(200).describe("Natural-language question or behavior to investigate"),
       symbol: tool.schema.string().max(160).optional().describe("Optional exact CodeGraph symbol"),
