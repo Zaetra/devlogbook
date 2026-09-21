@@ -66,6 +66,7 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
     },
     async execute(args) {
       contextConsulted = true
+      await client.app.log({ body: { service: "traceability", level: "info", message: `traceability_context consulted: ${args.query.slice(0, 120)}` } })
       const vault = required("TRACEABILITY_VAULT")
       const project = required("TRACEABILITY_PROJECT")
       const repo = required("TRACEABILITY_REPO_ROOT")

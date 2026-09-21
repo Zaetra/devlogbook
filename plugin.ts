@@ -38,6 +38,7 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
         },
         async execute(args) {
           contextConsulted = true
+          await client.app.log({ body: { service: "traceability", level: "info", message: `traceability_context consulted: ${args.query.slice(0, 120)}` } })
           const command = ["context", "--query", args.query]
           if (args.symbol) command.push("--symbol", args.symbol)
           if (args.limit) command.push("--limit", String(args.limit))
