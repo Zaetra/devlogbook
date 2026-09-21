@@ -18,6 +18,13 @@ For a local package build:
 npm install --global .\traceability-kit
 ```
 
+Then persist the workspace defaults once (Windows; sets user environment variables
+including a compatible Node for the CLI):
+
+```powershell
+devlogbook setup --vault "C:\workspace\traceability-vault" --auto-sync --require-context
+```
+
 Requirements:
 
 - Node.js >= 18; npm installs `obsidian-intelligence` automatically.

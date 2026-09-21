@@ -34,6 +34,7 @@ function parseArgs(argv) {
 function usage() {
   console.log(`Usage:
   devlogbook init   --vault <path> [--project <name>]
+  devlogbook setup  --vault <path> [--auto-sync] [--require-context]   # persist user env vars (Windows)
   devlogbook sync   --vault <path> --project <name> --repo <path> [--since <date>] [--force]
   devlogbook watch  --vault <path> --project <name> --repo <path> [--interval <minutes>]
   devlogbook status --vault <path>
@@ -44,7 +45,8 @@ function usage() {
 Environment defaults:
   TRACEABILITY_VAULT, TRACEABILITY_PROJECT, TRACEABILITY_REPO_ROOT,
   TRACEABILITY_NODE, ENGRAM_BIN, TRACEABILITY_CODEGRAPH_BIN,
-  OBSIDIAN_INTELLIGENCE_CLI, TRACEABILITY_AUTO_SYNC`)
+  OBSIDIAN_INTELLIGENCE_CLI, TRACEABILITY_AUTO_SYNC,
+  TRACEABILITY_REQUIRE_CONTEXT, TRACEABILITY_SKIP_GATE`)
 }
 
 function value(args, name, environmentName, required = false) {
@@ -271,6 +273,27 @@ function watch(args) {
   }, interval * 60 * 1000)
 }
 
+function setup(args) {
+  // Persist the workspace defaults as user environment variables so any
+  // future process (including OpenCode Desktop) inherits them. Explicit flags
+  // do not override existing user-set values unless --force is passed.
+  const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
+  const ps = spawnSync("powershell", [
+    "-NoProfile", "-Command",
+    `[Environment]::SetEnvironmentVariable("TRACEABILITY_VAULT","${vault}","User");` +
+    `[Environment]::SetEnvironmentVariable("TRACEABILITY_NODE","${process.execPath}","User")`,
+  ], { encoding: "utf8" })
+  if (ps.status !== 0) throw new Error(`Env setup failed: ${ps.stderr}`)
+  if (args.autoSync) spawnSync("powershell", ["-NoProfile", "-Command", '[Environment]::SetEnvironmentVariable("TRACEABILITY_AUTO_SYNC","true","User")'], { encoding: "utf8" })
+  if (args["require-context"]) spawnSync("powershell", ["-NoProfile", "-Command", '[Environment]::SetEnvironmentVariable("TRACEABILITY_REQUIRE_CONTEXT","true","User")'], { encoding: "utf8" })
+  console.log(
+    `Persisted user environment: TRACEABILITY_VAULT=${vault}, TRACEABILITY_NODE=${process.execPath}` +
+    (args.autoSync ? ", TRACEABILITY_AUTO_SYNC=true" : "") +
+    (args["require-context"] ? ", TRACEABILITY_REQUIRE_CONTEXT=true" : "") +
+    ". Restart OpenCode (and any terminal) to inherit them."
+  )
+}
+
 function status(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
   reindex(vault)
@@ -376,6 +399,7 @@ function main() {
   const command = args._[0]
   if (!command || command === "help" || command === "--help") return usage()
   if (command === "init") return init(args)
+  if (command === "setup") return setup(args)
   if (command === "sync") return sync(args)
   if (command === "watch") return watch(args)
   if (command === "status") return status(args)
