@@ -1,7 +1,7 @@
 {
   "name": "devlogbook",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Project-selectable CodeGraph, Engram, Obsidian, and OpenCode traceability toolkit",
   "main": "plugin.ts",
   "bin": {
