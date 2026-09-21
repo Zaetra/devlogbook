@@ -1,0 +1,11 @@
+{
+  "import-tickets": ["import ticket", "importticket", "ticket list", "tops", "adept id", "validate ticket", "batch"],
+  "gtfs-import": ["gtfs", "routes.txt", "agency", "shape", "stop time", "trip"],
+  "driver-manifest": ["manifest", "route block", "ghostscript", "pdf count", "pdf splitter"],
+  "fares-payroll": ["fares", "fare collected", "payroll", "sundial", "timecard"],
+  "employees": ["employee", "ssn", "emp_id", "adept"],
+  "daily-schedule": ["daily schedule", "daily view", "broward", "pompano", "miami"],
+  "authentication": ["auth", "telest", "login", "gate", "permission"],
+  "messaging": ["smtp", "sms", "email", "notify"],
+  "storage-infra": ["s3", "queue worker", "kibana", "elastic", "udp"]
+}

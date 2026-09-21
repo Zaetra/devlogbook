@@ -45,8 +45,10 @@ devlogbook sync `
 `sync` performs:
 
 1. `engram obsidian-export` for the selected Engram project.
-2. CodeGraph caller enrichment for notes containing `codegraph_symbols`.
-3. Obsidian Intelligence reindexing using the bundled npm dependency, or `OBSIDIAN_INTELLIGENCE_CLI` when overridden.
+2. `-sessions`/`-topics` pruning and dangling-link neutralization (operational noise out of the vault).
+3. **Feature grouping**: notes are regrouped by *project functionality* (`engram/<project>/<feature>/`) using a keyword map — `<vault>/features.json` or the shipped `config/features.example.json`; an editable per-feature MOC is generated; unmatched notes go to `misc/`.
+4. CodeGraph caller enrichment for notes containing `codegraph_symbols`.
+5. Obsidian Intelligence reindexing using the bundled npm dependency, or `OBSIDIAN_INTELLIGENCE_CLI` when overridden.
 
 The generated graph belongs to the selected user/workspace. A different developer can select a different project and vault.
 

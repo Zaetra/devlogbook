@@ -26,8 +26,13 @@ Persist work decisions, bug fixes, and progress to Engram (e.g. feature task doc
 3. Update the corresponding Markdown node with:
    - `Archivos que usan esta funcionalidad` from CodeGraph;
    - `Historial de cambios sobre este nodo` from Engram;
-   - source IDs, dates, and links to the project MOC.
+   - source IDs, dates, and links to the feature MOC.
 4. Reindex Obsidian Intelligence and validate broken links.
+
+Vault layout: notes are grouped by project functionality under
+`engram/<project>/<feature>/` (curated `features.json` keyword map, editable
+per vault). To add or refine a feature grouping, edit `features.json` in the
+vault root; classifications are deterministic and survive re-syncs.
 5. Keep the diff reviewable. Never rewrite unrelated notes.
 
 ## Safety

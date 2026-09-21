@@ -80,6 +80,7 @@ function run(command, args, options = {}) {
 
 function ensureDirectory(directory) {
   fs.mkdirSync(directory, { recursive: true })
+  return directory
 }
 
 function writeIfMissing(file, content) {
@@ -187,12 +188,73 @@ function neutralizeDanglingLinks(noteFile, knownNotes) {
   if (neutralized !== original) fs.writeFileSync(noteFile, neutralized, "utf8")
 }
 
+function loadFeatureMap(vault) {
+  // Vault-level features.json wins over the kit default; both are optional.
+  const candidates = [
+    path.join(vault, "features.json"),
+    path.join(packageRoot, "config", "features.json"),
+  ]
+  for (const file of candidates) {
+    if (fs.existsSync(file)) {
+      try {
+        return JSON.parse(fs.readFileSync(file, "utf8"))
+      } catch (error) {
+        console.warn(`Ignoring malformed features file ${file}: ${error.message}`)
+      }
+    }
+  }
+  return {}
+}
+
+function classifyFeature(noteFile, title, featureMap) {
+  const frontmatter = fs.readFileSync(noteFile, "utf8").slice(0, 2048).toLowerCase()
+  const haystack = `${title.toLowerCase()}\n${frontmatter}`
+  for (const [feature, keywords] of Object.entries(featureMap)) {
+    if (!Array.isArray(keywords)) continue
+    for (const keyword of keywords) {
+      if (haystack.includes(String(keyword).toLowerCase())) return feature
+    }
+  }
+  return "misc"
+}
+
+function regroupByFeature(vault, project, featureMap) {
+  const projectRoot = path.join(vault, "engram", project)
+  if (!fs.existsSync(projectRoot)) return
+  const grouped = {}
+  for (const typeDir of fs.readdirSync(projectRoot, { withFileTypes: true })) {
+    if (!typeDir.isDirectory()) continue
+    const typePath = path.join(projectRoot, typeDir.name)
+    for (const entry of fs.readdirSync(typePath, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".md")) continue
+      const source = path.join(typePath, entry.name)
+      const feature = classifyFeature(source, entry.name.replace(/\.md$/, ""), featureMap)
+      const featureDir = ensureDirectory(path.join(projectRoot, feature))
+      const destination = path.join(featureDir, entry.name)
+      if (destination !== source) fs.renameSync(source, destination)
+      grouped[feature] = grouped[feature] || []
+      grouped[feature].push(entry.name.replace(/\.md$/, ""))
+    }
+    // Empty the staging type folder once its notes moved next to their feature.
+    if (fs.readdirSync(typePath).length === 0) fs.rmdirSync(typePath)
+  }
+  for (const [feature, notes] of Object.entries(grouped)) {
+    const moc = path.join(projectRoot, feature, `MOC - ${feature}.md`)
+    const list = notes.map((n) => `- [[${n}]]`).join("\n")
+    fs.writeFileSync(moc, `---\ntype: moc\ntags: [moc, ${feature}]\n---\n\n# MOC — ${feature}\n\nNotas de esta funcionalidad, generadas por \`devlogbook sync\`.\n\n${list}\n`, "utf8")
+    grouped[feature] = notes
+  }
+  return grouped
+}
+
 function sync(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
   const project = value(args, "project", "TRACEABILITY_PROJECT", true)
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
   exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
   pruneExportNoise(vault)
+  const grouped = regroupByFeature(vault, project, loadFeatureMap(vault))
+  if (grouped) console.log(`Grouped by feature: ${Object.keys(grouped).join(", ")}`)
   enrich({ vault, repo, maxCallers: args.limit || 8 })
   reindex(vault)
 }
