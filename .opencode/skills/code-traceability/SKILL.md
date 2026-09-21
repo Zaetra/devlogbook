@@ -17,7 +17,7 @@ Use bounded context: include the relevant notes and up to the configured caller 
 
 ## During SDD
 
-Persist phase artifacts under `sdd/<change>/<phase>` and preserve the user prompt/decision that produced them. Use Engram as operational memory; do not treat generated Markdown as the only source of truth.
+Persist work decisions, bug fixes, and progress to Engram (e.g. feature task documents and progress topics such as `odd/<feature>/tasks`, or the project's own convention), preserving the user prompt/decision that produced them. Use Engram as operational memory; do not treat generated Markdown as the only source of truth. The sync does not depend on any planning methodology — it reacts to work-unit commits and idle sessions.
 
 ## After archive or a significant change
 

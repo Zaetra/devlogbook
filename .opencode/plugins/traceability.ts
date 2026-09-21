@@ -32,9 +32,11 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
   const autoSync = process.env.TRACEABILITY_AUTO_SYNC === "true"
   const kitRoot = process.env.TRACEABILITY_KIT_ROOT
   let syncInFlight: Promise<unknown> | undefined
+  let lastSyncAt = 0
 
   const sync = async () => {
     if (!autoSync || !kitRoot || syncInFlight) return
+    if (Date.now() - lastSyncAt < 60_000) return
     syncInFlight = (async () => {
       try {
         if (process.platform === "win32") {
@@ -42,6 +44,7 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
         } else {
           await $`${kitRoot}/scripts/traceability-sync.sh`
         }
+        lastSyncAt = Date.now()
         await client.app.log({ body: { service: "traceability", level: "info", message: "Automatic traceability sync completed" } })
       } catch (error) {
         await client.app.log({ body: { service: "traceability", level: "warn", message: `Automatic sync failed: ${String(error)}` } })
@@ -92,8 +95,10 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
     event: async ({ event }: { event: { type?: string } }) => {
       if (event.type === "session.idle") await sync()
     },
-    "tool.execute.after": async (input: { tool?: string }) => {
-      if (input.tool && /sdd[-_]archive/i.test(input.tool)) await sync()
+    "tool.execute.after": async (input: { tool?: string; args?: string; call?: { args?: string } }) => {
+      const command = `${input.args || ""}${input.call?.args || ""}`.toLowerCase()
+      const isGitCommit = input.tool?.match(/^(bash|shell|terminal)$/i) && /git(\s+\S+)*\s+commit\b/.test(command)
+      if (isGitCommit) await sync()
     },
   }
 }

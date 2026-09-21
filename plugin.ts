@@ -8,12 +8,15 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
   const syncEnabled = process.env.TRACEABILITY_AUTO_SYNC === "true"
   const cli = process.env.TRACEABILITY_CLI || "traceability"
   let running = false
+  let lastSyncAt = 0
 
   const sync = async () => {
     if (!syncEnabled || running) return
+    if (Date.now() - lastSyncAt < 60_000) return
     running = true
     try {
       await $`${cli} sync`
+      lastSyncAt = Date.now()
       await client.app.log({ body: { service: "traceability", level: "info", message: "Traceability sync completed" } })
     } catch (error) {
       await client.app.log({ body: { service: "traceability", level: "warn", message: `Traceability sync failed: ${String(error)}` } })
@@ -47,8 +50,10 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
     event: async ({ event }) => {
       if (event.type === "session.idle") await sync()
     },
-    "tool.execute.after": async (input) => {
-      if (input.tool && /sdd[-_]archive/i.test(input.tool)) await sync()
+    "tool.execute.after": async (input: { tool?: string; args?: string; call?: { args?: string }; result?: string }) => {
+      const command = `${input.args || ""}${input.call?.args || ""}`.toLowerCase()
+      const isGitCommit = input.tool?.match(/^(bash|shell|terminal)$/i) && /git(\s+\S+)*\s+commit\b/.test(command)
+      if (isGitCommit) await sync()
     },
   }
 }

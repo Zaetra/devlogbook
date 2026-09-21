@@ -91,7 +91,7 @@ Install the npm plugin in the project's OpenCode configuration:
 traceability opencode-install --repo "C:\workspace\ta_schedule_backend"
 ```
 
-Restart OpenCode. The plugin provides `traceability_context` and triggers a bounded sync after an idle session or an `sdd-archive` tool event when:
+Restart OpenCode. The plugin provides `traceability_context` and triggers a bounded sync after an idle session or when the agent completes a work-unit `git commit`, whichever methodology the project uses (SDD, ODD, or plain ad-hoc work).
 
 ```powershell
 $env:TRACEABILITY_AUTO_SYNC = "true"
