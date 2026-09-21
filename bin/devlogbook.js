@@ -145,11 +145,54 @@ function reindex(vault) {
   run(node, [cli, "status", "--vault", vault])
 }
 
+function pruneExportNoise(vault) {
+  // Sessions and topics are operational metadata, not logbook content: they
+  // bloat the Obsidian graph. The exporter emits them under <vault>/engram, so
+  // prune after every export to keep the vault clean.
+  for (const noise of ["_sessions", "_topics"]) {
+    fs.rmSync(path.join(vault, "engram", noise), { recursive: true, force: true })
+  }
+  // Exported observations still reference the pruned notes via [[session-*]]
+  // and [[topic-*]] wikilinks. Neutralize those links into plain text so the
+  // Obsidian graph doesn't count them as broken edges.
+  const projectRoot = path.join(vault, "engram")
+  const engramRoot = fs.existsSync(projectRoot) ? projectRoot : vault
+  const knownNotes = new Set()
+  if (fs.existsSync(engramRoot)) {
+    visitTree(engramRoot, (noteFile) => {
+      knownNotes.add(path.basename(noteFile, ".md"))
+    })
+    visitTree(engramRoot, (noteFile) => {
+      neutralizeDanglingLinks(noteFile, knownNotes)
+    })
+  }
+}
+
+function visitTree(root, onNote) {
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const current = path.join(root, entry.name)
+    if (entry.isDirectory()) visitTree(current, onNote)
+    else if (entry.isFile() && entry.name.endsWith(".md")) onNote(current)
+  }
+}
+
+function neutralizeDanglingLinks(noteFile, knownNotes) {
+  const original = fs.readFileSync(noteFile, "utf8")
+  const neutralized = original.replace(/\[\[([^\]]*)\]\]/g, (match, target) => {
+    const base = target.split("|")[0].split("#")[0].trim()
+    const baseName = base.split("/").pop()
+    if (knownNotes && knownNotes.has(baseName)) return match
+    return base
+  })
+  if (neutralized !== original) fs.writeFileSync(noteFile, neutralized, "utf8")
+}
+
 function sync(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
   const project = value(args, "project", "TRACEABILITY_PROJECT", true)
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
   exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
+  pruneExportNoise(vault)
   enrich({ vault, repo, maxCallers: args.limit || 8 })
   reindex(vault)
 }
