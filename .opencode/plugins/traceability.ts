@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
+import path from "node:path"
 import { type Plugin, tool } from "@opencode-ai/plugin"
 
 const execFileAsync = promisify(execFile)
@@ -68,17 +69,18 @@ const TraceabilityPlugin: Plugin = async ({ $, client }) => {
       await client.app.log({ body: { service: "traceability", level: "info", message: `traceability_context consulted: ${args.query.slice(0, 120)}` } })
       // Validate all envs up front with an actionable message, and only unlock
       // the edit gate after a call that actually produced context.
-      const missing = ["TRACEABILITY_VAULT", "TRACEABILITY_PROJECT", "TRACEABILITY_REPO_ROOT"].filter((name) => !process.env[name])
+      const missing = ["TRACEABILITY_VAULT"].filter((name) => !process.env[name])
       if (missing.length > 0) {
         throw new Error(
-          `traceability_context cannot run: missing environment variables ${missing.join(", ")}. ` +
-          "Set them (e.g. TRACEABILITY_VAULT=<vault path>, TRACEABILITY_PROJECT=<engram project>, TRACEABILITY_REPO_ROOT=<repo>) " +
-          "in the terminal BEFORE launching OpenCode, then restart OpenCode and retry."
+          `traceability_context cannot run: missing environment variable ${missing.join(", ")}. ` +
+          "Set it (e.g. TRACEABILITY_VAULT=<vault path>) as a user environment variable or in the terminal BEFORE launching OpenCode, then restart OpenCode and retry."
         )
       }
       const vault = required("TRACEABILITY_VAULT")
-      const project = required("TRACEABILITY_PROJECT")
-      const repo = required("TRACEABILITY_REPO_ROOT")
+      // Project and repo derive from the OpenCode working directory unless
+      // explicitly pinned, so a developer can configure once per workspace.
+      const project = process.env.TRACEABILITY_PROJECT || path.basename(process.cwd())
+      const repo = process.env.TRACEABILITY_REPO_ROOT || process.cwd()
       const node = process.env.TRACEABILITY_NODE || "node"
       const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI || "vault-intelligence.js"
       const engram = process.env.ENGRAM_BIN || "engram"
