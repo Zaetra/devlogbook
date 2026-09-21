@@ -288,8 +288,37 @@ function context(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
   const project = value(args, "project", "TRACEABILITY_PROJECT", true)
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT")
-  const limit = String(args.limit || 5)
+  const limit = args.limit || 5
+  const maxLimit = Number.isFinite(Number(args.limit)) ? Number(args.limit) : 8
   const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI || path.join(packageRoot, "node_modules", "obsidian-intelligence", "vault-intelligence.js")
+  const featureMap = loadFeatureMap(vault)
+
+  // Primary optimization: a matched feature returns its context hub (MOC +
+  // recent notes) ahead of the full-text sources, so the answer is anchored
+  // on the functionality instead of scattered keyword hits.
+  let feature = null
+  for (const [name, keywords] of Object.entries(featureMap)) {
+    if (!Array.isArray(keywords)) continue
+    for (const keyword of keywords) {
+      if (query.toLowerCase().includes(String(keyword).toLowerCase())) { feature = name; break }
+    }
+    if (feature) break
+  }
+  const notePdfCount = (dir) => fs.readdirSync(dir).filter((f) => f.endsWith(".md") && f !== `MOC - ${feature}.md`).length
+  if (feature) {
+    const featureDir = path.join(vault, "engram", project, feature)
+    const moc = path.join(featureDir, `MOC - ${feature}.md`)
+    const total = fs.existsSync(featureDir) ? notePdfCount(featureDir) : 0
+    const recent = fs.existsSync(featureDir)
+      ? fs.readdirSync(featureDir).filter((f) => f.endsWith(".md") && f !== `MOC - ${feature}.md`).slice(-maxLimit)
+      : []
+    console.log(`## Feature context (${feature})`)
+    if (fs.existsSync(moc)) console.log(`Hub: [[MOC - ${feature}]] (${recent.length} of ${total} notes shown)`)
+    for (const note of recent) console.log(`- [[${note.replace(/\.md$/, "")}]]`)
+  } else {
+    console.log("## Feature context\nNo feature keyword matched the query; falling back to full-text sources.")
+  }
+
   if (fs.existsSync(cli)) {
     console.log("## Obsidian")
     // obsidian-intelligence <= 1.1.0 silently drops unknown CLI flags and lets
