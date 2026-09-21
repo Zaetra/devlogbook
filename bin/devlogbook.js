@@ -111,7 +111,7 @@ function init(args) {
   ensureDirectory(vault)
   writeIfMissing(path.join(vault, ".gitignore"), ".vault-intelligence.db\n*.db\n")
   writeIfMissing(path.join(vault, "Inicio.md"), `---\ntype: moc\ntags: [inicio, moc]\n---\n\n# Bóveda de conocimiento\n\n- [[MOC - ${project}]]\n`)
-  writeIfMissing(path.join(vault, `MOC - ${project}.md`), `---\ntype: moc\ntags: [moc, ${project}]\n---\n\n# MOC — ${project}\n\n- [[Inicio]]\n\n## Cambios de trabajo\n\nLas notas se generan con el comando devlogbook sync.\n`)
+  writeIfMissing(path.join(vault, `MOC - ${project}.md`), `---\ntype: moc\ntags: [moc, ${project}]\n---\n\n# MOC - ${project}\n\n- [[Inicio]]\n\n## Cambios de trabajo\n\nLas notas se generan con el comando devlogbook sync.\n`)
   console.log(`Vault initialized: ${vault}`)
 }
 
@@ -274,7 +274,7 @@ function regroupByFeature(vault, project, featureMap) {
   for (const [feature, notes] of Object.entries(grouped)) {
     const moc = path.join(projectRoot, feature, `MOC - ${feature}.md`)
     const list = notes.map((n) => `- [[${n}]]`).join("\n")
-    fs.writeFileSync(moc, `---\ntype: moc\ntags: [moc, ${feature}]\n---\n\n# MOC — ${feature}\n\nNotas de esta funcionalidad, generadas por \`devlogbook sync\`.\n\n${list}\n`, "utf8")
+    fs.writeFileSync(moc, `---\ntype: moc\ntags: [moc, ${feature}]\n---\n\n# MOC - ${feature}\n\nNotas de esta funcionalidad, generadas por \`devlogbook sync\`.\n\n${list}\n`, "utf8")
     grouped[feature] = notes
   }
   return grouped
