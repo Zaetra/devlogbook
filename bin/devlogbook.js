@@ -58,7 +58,13 @@ function executable(name, environmentName) {
 }
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  // On Windows shell mode joins argv with spaces and loses quoting, which
+  // splits multi-word values (e.g. natural language queries). Quote anything
+  // containing whitespace or shell metacharacters before the join.
+  const shellArgs = process.platform === "win32"
+    ? args.map((value) => /[\s"&'<>|]/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value)
+    : args
+  const result = spawnSync(command, shellArgs, {
     cwd: options.cwd,
     env: { ...process.env, ...(options.env || {}) },
     encoding: "utf8",
@@ -181,7 +187,10 @@ function context(args) {
   const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI || path.join(packageRoot, "node_modules", "obsidian-intelligence", "vault-intelligence.js")
   if (fs.existsSync(cli)) {
     console.log("## Obsidian")
-    const result = run(executable("node", "TRACEABILITY_NODE"), [cli, "search", query, "--hybrid", "--limit", limit], { capture: true, env: { VAULT_PATH: vault } })
+    // obsidian-intelligence <= 1.1.0 silently drops unknown CLI flags and lets
+    // their values pollute the query (e.g. "--limit 5" appends "5" to the text).
+    // Pass only the query until the provider parses these flags.
+    const result = run(executable("node", "TRACEABILITY_NODE"), [cli, "search", query], { capture: true, env: { VAULT_PATH: vault } })
     console.log(result.stdout.trim())
   } else console.warn("Obsidian Intelligence unavailable; Engram and CodeGraph results will still be returned.")
   console.log("## Engram")
