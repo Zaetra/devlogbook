@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs")
-const os = require("node:os")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
 
@@ -447,7 +446,18 @@ function context(args) {
 function installOpenCode(args) {
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
   const configPath = path.join(repo, "opencode.json")
-  const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, "utf8")) : { $schema: "https://opencode.ai/config.json" }
+  // A malformed opencode.json must fail loudly: the next step would overwrite
+  // the file, so silently defaulting would destroy the user's config.
+  let config
+  if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, "utf8"))
+    } catch (error) {
+      throw new Error(`Invalid JSON in ${configPath}: ${error.message}`)
+    }
+  } else {
+    config = { $schema: "https://opencode.ai/config.json" }
+  }
   const plugins = Array.isArray(config.plugin) ? config.plugin : []
   if (!plugins.includes("devlogbook")) plugins.push("devlogbook")
   config.plugin = plugins
@@ -462,7 +472,7 @@ function installOpenCode(args) {
   // intentionally match the host OpenCode).
   const opencodePkg = path.join(opencodeRoot, "package.json")
   if (!fs.existsSync(opencodePkg)) {
-    fs.writeFileSync(opencodePkg, JSON.stringify({ private: true, dependencies: { "@opencode-ai/plugin": "1.18.31" } }, null, 2) + "\n", "utf8")
+    fs.writeFileSync(opencodePkg, `${JSON.stringify({ private: true, dependencies: { "@opencode-ai/plugin": "1.18.31" } }, null, 2)}\n`, "utf8")
   }
   const skillInstalled = copyFilesIfMissing(skillSource, path.join(opencodeRoot, "skills"))
   const commandInstalled = copyFilesIfMissing(commandSource, path.join(opencodeRoot, "commands"))
