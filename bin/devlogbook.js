@@ -305,12 +305,28 @@ function sync(args) {
   const project = value(args, "project", "TRACEABILITY_PROJECT", true)
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
   const featureConfig = loadFeatureMap(vault)
-  exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
+  // A failed export (e.g. one bad session-hub filename aborts engram with a
+  // non-zero exit after writing most notes) must not discard the remaining
+  // phases: prune/regroup/enrich/reindex still produce a usable vault from
+  // the partial export. The failure is reported and surfaced via exit code 1
+  // only after every phase has run, so scripts can detect the partial sync.
+  let exportError = null
+  try {
+    exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
+  } catch (error) {
+    exportError = error
+    console.error(`[devlogbook] engram export failed: ${error.message}`)
+    console.error("[devlogbook] continuing with prune/regroup/enrich/reindex over the partial export.")
+  }
   pruneExportNoise(vault, project, featureConfig.exclude || [])
   const grouped = regroupByFeature(vault, project, featureConfig)
   if (grouped) console.log(`Grouped by feature: ${Object.keys(grouped).join(", ")}`)
   enrich({ vault, repo, maxCallers: args.limit || 8 })
   reindex(vault)
+  if (exportError) {
+    console.error("[devlogbook] sync completed with export errors (partial sync).")
+    process.exitCode = 1
+  }
 }
 
 function watch(args) {
@@ -318,9 +334,13 @@ function watch(args) {
   if (!Number.isFinite(interval) || interval < 1) throw new Error("--interval must be at least 1 minute")
   const syncArgs = { ...args }
   delete syncArgs._
+  // A prior cycle's partial sync may have set exitCode 1; each new cycle
+  // starts clean so only the latest cycle's result is reflected.
+  process.exitCode = 0
   sync(syncArgs)
   console.log(`Watching ${value(args, "project", "TRACEABILITY_PROJECT", true)} every ${interval} minutes. Press Ctrl+C to stop.`)
   setInterval(() => {
+    process.exitCode = 0
     try { sync(syncArgs) } catch (error) { console.error(`[devlogbook] sync failed: ${error.message}`) }
   }, interval * 60 * 1000)
 }
