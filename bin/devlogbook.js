@@ -376,7 +376,7 @@ function graph(args) {
   // bundled dependency. Reading OBSIDIAN_INTELLIGENCE_CLI directly made graph
   // fail with "not installed" whenever the optional env var was unset.
   const cli = resolveObsidianCli()
-  if (!cli || !fs.existsSync(cli)) throw new Error("Obsidian Intelligence is not installed. Run npm install -g devlogbook or set OBSIDIAN_INTELLIGENCE_CLI.")
+  if (typeof cli !== "string" || !fs.existsSync(cli)) throw new Error("Obsidian Intelligence is not installed. Run npm install -g devlogbook or set OBSIDIAN_INTELLIGENCE_CLI.")
   run(executable("node", "TRACEABILITY_NODE"), [cli, "graph", "hubs", String(args.limit || 10)], { env: { VAULT_PATH: vault } })
 }
 
