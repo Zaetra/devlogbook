@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs")
-const os = require("node:os")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
 
@@ -305,12 +304,28 @@ function sync(args) {
   const project = value(args, "project", "TRACEABILITY_PROJECT", true)
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
   const featureConfig = loadFeatureMap(vault)
-  exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
+  // A failed export (e.g. one bad session-hub filename aborts engram with a
+  // non-zero exit after writing most notes) must not discard the remaining
+  // phases: prune/regroup/enrich/reindex still produce a usable vault from
+  // the partial export. The failure is reported and surfaced via exit code 1
+  // only after every phase has run, so scripts can detect the partial sync.
+  let exportError = null
+  try {
+    exportMemories({ vault, project, since: args.since, force: Boolean(args.force) })
+  } catch (error) {
+    exportError = error
+    console.error(`[devlogbook] engram export failed: ${error.message}`)
+    console.error("[devlogbook] continuing with prune/regroup/enrich/reindex over the partial export.")
+  }
   pruneExportNoise(vault, project, featureConfig.exclude || [])
   const grouped = regroupByFeature(vault, project, featureConfig)
   if (grouped) console.log(`Grouped by feature: ${Object.keys(grouped).join(", ")}`)
   enrich({ vault, repo, maxCallers: args.limit || 8 })
   reindex(vault)
+  if (exportError) {
+    console.error("[devlogbook] sync completed with export errors (partial sync).")
+    process.exitCode = 1
+  }
 }
 
 function watch(args) {
@@ -318,9 +333,13 @@ function watch(args) {
   if (!Number.isFinite(interval) || interval < 1) throw new Error("--interval must be at least 1 minute")
   const syncArgs = { ...args }
   delete syncArgs._
+  // A prior cycle's partial sync may have set exitCode 1; each new cycle
+  // starts clean so only the latest cycle's result is reflected.
+  process.exitCode = 0
   sync(syncArgs)
   console.log(`Watching ${value(args, "project", "TRACEABILITY_PROJECT", true)} every ${interval} minutes. Press Ctrl+C to stop.`)
   setInterval(() => {
+    process.exitCode = 0
     try { sync(syncArgs) } catch (error) { console.error(`[devlogbook] sync failed: ${error.message}`) }
   }, interval * 60 * 1000)
 }
@@ -353,8 +372,11 @@ function status(args) {
 
 function graph(args) {
   const vault = value(args, "vault", "TRACEABILITY_VAULT", true)
-  const cli = process.env.OBSIDIAN_INTELLIGENCE_CLI
-  if (!fs.existsSync(cli)) throw new Error("Obsidian Intelligence is not installed. Run npm install -g devlogbook or set OBSIDIAN_INTELLIGENCE_CLI.")
+  // Same resolution as reindex()/context(): env override first, then the
+  // bundled dependency. Reading OBSIDIAN_INTELLIGENCE_CLI directly made graph
+  // fail with "not installed" whenever the optional env var was unset.
+  const cli = resolveObsidianCli()
+  if (typeof cli !== "string" || !fs.existsSync(cli)) throw new Error("Obsidian Intelligence is not installed. Run npm install -g devlogbook or set OBSIDIAN_INTELLIGENCE_CLI.")
   run(executable("node", "TRACEABILITY_NODE"), [cli, "graph", "hubs", String(args.limit || 10)], { env: { VAULT_PATH: vault } })
 }
 
@@ -424,7 +446,18 @@ function context(args) {
 function installOpenCode(args) {
   const repo = value(args, "repo", "TRACEABILITY_REPO_ROOT", true)
   const configPath = path.join(repo, "opencode.json")
-  const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, "utf8")) : { $schema: "https://opencode.ai/config.json" }
+  // A malformed opencode.json must fail loudly: the next step would overwrite
+  // the file, so silently defaulting would destroy the user's config.
+  let config
+  if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, "utf8"))
+    } catch (error) {
+      throw new Error(`Invalid JSON in ${configPath}: ${error.message}`)
+    }
+  } else {
+    config = { $schema: "https://opencode.ai/config.json" }
+  }
   const plugins = Array.isArray(config.plugin) ? config.plugin : []
   if (!plugins.includes("devlogbook")) plugins.push("devlogbook")
   config.plugin = plugins
@@ -439,7 +472,7 @@ function installOpenCode(args) {
   // intentionally match the host OpenCode).
   const opencodePkg = path.join(opencodeRoot, "package.json")
   if (!fs.existsSync(opencodePkg)) {
-    fs.writeFileSync(opencodePkg, JSON.stringify({ private: true, dependencies: { "@opencode-ai/plugin": "1.18.31" } }, null, 2) + "\n", "utf8")
+    fs.writeFileSync(opencodePkg, `${JSON.stringify({ private: true, dependencies: { "@opencode-ai/plugin": "1.18.31" } }, null, 2)}\n`, "utf8")
   }
   const skillInstalled = copyFilesIfMissing(skillSource, path.join(opencodeRoot, "skills"))
   const commandInstalled = copyFilesIfMissing(commandSource, path.join(opencodeRoot, "commands"))
