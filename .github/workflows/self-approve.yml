@@ -1,0 +1,28 @@
+name: self-approve
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    # Only the repository owner may ask for an approval, and only on a PR
+    # they own: comment "/approve" on the PR, or add the "self-approve" label.
+    if: |
+      github.event.sender.login == github.repository_owner && (
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/approve')) ||
+        (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'self-approve'))
+      )
+    steps:
+      - name: Approve the pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: gh pr review "$PR_NUMBER" --approve --repo "$GITHUB_REPOSITORY"
