@@ -375,7 +375,10 @@ function context(args) {
   const limit = args.limit || 5
   const maxLimit = Number.isFinite(Number(args.limit)) ? Number(args.limit) : 8
   const cli = resolveObsidianCli()
-  const featureMap = loadFeatureMap(vault)
+  const featureConfig = loadFeatureMap(vault)
+  // loadFeatureMap returns the config wrapper; the keyword map proper lives
+  // under `.features` (the same shape regroupByFeature already consumes).
+  const featureMap = featureConfig.features || {}
 
   // Primary optimization: a matched feature returns its context hub (MOC +
   // recent notes) ahead of the full-text sources, so the answer is anchored
@@ -400,7 +403,11 @@ function context(args) {
     if (fs.existsSync(moc)) console.log(`Hub: [[MOC - ${feature}]] (${recent.length} of ${total} notes shown)`)
     for (const note of recent) console.log(`- [[${note.replace(/\.md$/, "")}]]`)
   } else {
-    console.log("## Feature context\nNo feature keyword matched the query; falling back to full-text sources.")
+    const hasKeywords = Object.values(featureMap).some(
+      (keywords) => Array.isArray(keywords) && keywords.length > 0
+    )
+    const reason = hasKeywords ? "No feature keyword matched the query" : "Feature map is empty"
+    console.log(`## Feature context\n${reason}; falling back to full-text sources.`)
   }
 
   if (fs.existsSync(cli)) {
