@@ -57,6 +57,11 @@ devlogbook sync `
 4. CodeGraph caller enrichment for notes containing `codegraph_symbols`.
 5. Obsidian Intelligence reindexing using the bundled npm dependency, or `OBSIDIAN_INTELLIGENCE_CLI` when overridden.
 
+If the Engram export fails (partial export), `sync` reports the failure,
+still runs steps 2–5 over the notes that were exported, and exits with
+code `1` so scripts can detect the partial sync. `watch` keeps running and
+resets the exit code on each cycle.
+
 The generated graph belongs to the selected user/workspace. A different developer can select a different project and vault.
 
 ## Available commands
@@ -141,6 +146,7 @@ The package is code only. Each developer creates or selects their own vault and 
 
 ```text
 bin/devlogbook.js         # npm CLI
+test/                     # CLI tests (node --test, run with `npm test`)
 plugin.ts                 # OpenCode plugin entrypoint
 scripts/                  # sync, validation, and CodeGraph enrichment
 config/                   # portable configuration examples
