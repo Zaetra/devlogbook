@@ -18,7 +18,6 @@
   },
   "files": [
     "bin",
-    "lib",
     "plugin.ts",
     "scripts",
     "README.md",
