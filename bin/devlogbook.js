@@ -38,14 +38,18 @@ function usage() {
   devlogbook watch  --vault <path> --project <name> --repo <path> [--interval <minutes>]
   devlogbook status --vault <path>
   devlogbook graph  --vault <path> [--limit <n>]
-  devlogbook context --query <text> [--symbol <name>] [--project <name>] [--repo <path>] [--vault <path>]
+  devlogbook context --query <text> [--symbol <name>] [--project <name>] [--repo <path>] [--vault <path>] [--limit <n>]
   devlogbook opencode-install --repo <path>
 
 Environment defaults:
   TRACEABILITY_VAULT, TRACEABILITY_PROJECT, TRACEABILITY_REPO_ROOT,
   TRACEABILITY_NODE, ENGRAM_BIN, TRACEABILITY_CODEGRAPH_BIN,
   OBSIDIAN_INTELLIGENCE_CLI, TRACEABILITY_AUTO_SYNC,
-  TRACEABILITY_REQUIRE_CONTEXT, TRACEABILITY_SKIP_GATE`)
+  TRACEABILITY_REQUIRE_CONTEXT, TRACEABILITY_SKIP_GATE
+
+Notes:
+  context --limit bounds only the Engram section. obsidian-intelligence
+  (1.1.0 and 1.2.0) does not parse --limit, so only the query is forwarded.`)
 }
 
 function value(args, name, environmentName, required = false) {

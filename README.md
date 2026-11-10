@@ -155,6 +155,13 @@ config/                   # portable configuration examples
 ## Safety
 
 - The CLI never deletes notes or application code.
-- Queries are bounded to eight results by default.
+- Engram queries are bounded to eight results by default.
 - The package treats Engram as operational memory and Markdown as the generated projection.
 - Ambiguous project names must be resolved explicitly with `--project`.
+
+## Known limitations
+
+- `context --limit N` bounds only the Engram section. The bundled
+  `obsidian-intelligence` (1.1.0 and 1.2.0) does not parse `--limit` in its
+  top-level argument parser, so the CLI forwards only the query to it instead
+  of letting the value leak into the search text.
